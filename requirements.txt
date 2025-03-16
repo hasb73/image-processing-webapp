@@ -2,5 +2,6 @@ streamlit
 opencv-python-headless
 numpy
 matplotlib
+facenet-pytorch
 scikit-image
 scikit-learn
