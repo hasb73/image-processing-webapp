@@ -2,6 +2,7 @@ import streamlit as st
 import cv2
 import numpy as np
 import matplotlib.pyplot as plt
+from facenet_pytorch import MTCNN
 from skimage.color import rgb2hsv, rgb2gray
 from skimage.filters import threshold_otsu, threshold_multiotsu
 from sklearn.cluster import KMeans
@@ -186,6 +187,22 @@ if uploaded_file is not None:
     blue = cropped_image[:, :, 2] * mask
     segmented_image = np.dstack((red, green, blue))
 
+    # MTCNN Face Detection
+    detector = MTCNN(thresholds=[0.6, 0.7, 0.9])
+    mtcnn_result = cropped_image.copy()
+    boxes, probs, landmarks = detector.detect(cropped_image, landmarks=True)
+    fig_mtcnn, ax_mtcnn = plt.subplots(figsize=(5, 3))
+    ax_mtcnn.imshow(mtcnn_result)
+    ax_mtcnn.axis('off')
+    if boxes is not None:
+        for box, prob, landmark in zip(boxes, probs, landmarks):
+            x1, y1, x2, y2 = map(int, box)
+            width = x2 - x1
+            height = y2 - y1
+            rect = plt.Rectangle((x1, y1), width, height, linewidth=2, edgecolor='r', facecolor='none')
+            ax_mtcnn.add_patch(rect)
+            ax_mtcnn.text(x1, y1 - 10, f"{prob:.2f}", color='r', fontsize=10, bbox=dict(facecolor='white', alpha=0.8))
+            ax_mtcnn.scatter(landmark[:, 0], landmark[:, 1], s=8, c='b')
 
     # Haar Cascade Face Detection
     face_cascade = cv2.CascadeClassifier(cv2.data.haarcascades + 'haarcascade_frontalface_alt2.xml')
@@ -197,7 +214,7 @@ if uploaded_file is not None:
             cv2.rectangle(haar_result, (x, y), (x + w, y + h), (0, 0, 255), 2)
 
     # Display Segmentation Results
-    fig_seg, axes_seg = plt.subplots(1, 4, figsize=(20, 5))
+    fig_seg, axes_seg = plt.subplots(1, 5, figsize=(20, 5))
     axes_seg[0].imshow(otsu_thresh, cmap='gray')
     axes_seg[0].set_title("Otsu Threshold")
     axes_seg[0].axis("off")
@@ -207,7 +224,14 @@ if uploaded_file is not None:
     axes_seg[2].imshow(segmented_image)
     axes_seg[2].set_title("HSV Segmentation")
     axes_seg[2].axis("off")
-    axes_seg[3].imshow(haar_result)
-    axes_seg[3].set_title("Haar Cascade")
+    axes_seg[3].imshow(mtcnn_result)
+    axes_seg[3].set_title("MTCNN")
     axes_seg[3].axis("off")
+    axes_seg[4].imshow(haar_result)
+    axes_seg[4].set_title("Haar Cascade")
+    axes_seg[4].axis("off")
     st.pyplot(fig_seg)
+
+    # Display MTCNN separately for clarity (since it’s drawn on a separate figure)
+    st.subheader("MTCNN Face Detection (Detailed)")
+    st.pyplot(fig_mtcnn)
