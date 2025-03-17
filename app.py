@@ -183,4 +183,3 @@ if uploaded_file is not None:
     face_cascade = cv2.CascadeClassifier(cv2.data.haarcascades + 'haarcascade_frontalface_alt2.xml')
     haar_result = image_rgb.copy()
     faces_haar = face_cascade.detectMultiScale(image_rgb, scaleFactor=1.1, minNeighbors=1, minSize=(20, 20))
-    for (x, y, w, h)
