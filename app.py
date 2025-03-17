@@ -3,7 +3,7 @@ import cv2
 import numpy as np
 import matplotlib.pyplot as plt
 from facenet_pytorch import MTCNN
-from skimage.color import rgb2hsv
+from skimage.color import rgb2hsv, rgb2gray
 from skimage.filters import threshold_otsu, threshold_multiotsu
 from sklearn.cluster import KMeans
 import os
@@ -183,3 +183,30 @@ if uploaded_file is not None:
     face_cascade = cv2.CascadeClassifier(cv2.data.haarcascades + 'haarcascade_frontalface_alt2.xml')
     haar_result = image_rgb.copy()
     faces_haar = face_cascade.detectMultiScale(image_rgb, scaleFactor=1.1, minNeighbors=1, minSize=(20, 20))
+    for (x, y, w, h) in faces_haar:
+        aspect_ratio = w / h
+        if 0.7 < aspect_ratio < 1.3:
+            cv2.rectangle(haar_result, (x, y), (x + w, y + h), (0, 0, 255), 2)
+
+    # Display Segmentation Results
+    fig_seg, axes_seg = plt.subplots(1, 5, figsize=(20, 5))
+    axes_seg[0].imshow(otsu_thresh, cmap='gray')
+    axes_seg[0].set_title("Otsu Threshold")
+    axes_seg[0].axis("off")
+    axes_seg[1].imshow(segmented)
+    axes_seg[1].set_title("K-Means Clustering")
+    axes_seg[1].axis("off")
+    axes_seg[2].imshow(segmented_image)
+    axes_seg[2].set_title("HSV Segmentation")
+    axes_seg[2].axis("off")
+    axes_seg[3].imshow(mtcnn_result)
+    axes_seg[3].set_title("MTCNN")
+    axes_seg[3].axis("off")
+    axes_seg[4].imshow(haar_result)
+    axes_seg[4].set_title("Haar Cascade")
+    axes_seg[4].axis("off")
+    st.pyplot(fig_seg)
+
+    # Display MTCNN separately for clarity (since it’s drawn on a separate figure)
+    st.subheader("MTCNN Face Detection (Detailed)")
+    st.pyplot(fig_mtcnn)
