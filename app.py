@@ -3,7 +3,7 @@ import cv2
 import numpy as np
 import matplotlib.pyplot as plt
 from facenet_pytorch import MTCNN
-from skimage.color import rgb2hsv, rgb2gray
+from skimage.color import rgb2hsv
 from skimage.filters import threshold_otsu, threshold_multiotsu
 from sklearn.cluster import KMeans
 import os
@@ -12,7 +12,7 @@ import os
 st.title("Facial Edge Detection and Segmentation")
 
 # File uploader for image input
-uploaded_file = st.file_uploader("Upload an image of a face or group of faces", type=["jpg", "png", "jpeg"])
+uploaded_file = st.file_uploader("Upload an image", type=["jpg", "png", "jpeg"])
 if uploaded_file is not None:
     # Read the image
     file_bytes = np.asarray(bytearray(uploaded_file.read()), dtype=np.uint8)
@@ -23,33 +23,8 @@ if uploaded_file is not None:
     st.subheader("Original Image")
     st.image(image_rgb, use_column_width=True)
 
-    # Dynamic cropping to 1:2 aspect ratio
-    def crop_to_aspect_ratio(img, aspect_ratio=1/2):  # 1:2 aspect ratio (height:width)
-        h, w = img.shape[:2]
-        target_w = w
-        target_h = int(target_w * aspect_ratio)
-
-        # If the image is too short, scale width instead
-        if target_h > h:
-            target_h = h
-            target_w = int(h / aspect_ratio)
-
-        # Calculate center crop coordinates
-        start_h = max(0, (h - target_h) // 2)
-        start_w = max(0, (w - target_w) // 2)
-        end_h = start_h + target_h
-        end_w = start_w + target_w
-
-        cropped_image = img[start_h:end_h, start_w:end_w]
-        return cropped_image
-
-    # Apply dynamic cropping
-    cropped_image = crop_to_aspect_ratio(image_rgb)
-    st.subheader("Cropped Image (1:2 Aspect Ratio)")
-    st.image(cropped_image, use_column_width=True)
-
     # Preprocessing
-    gray = cv2.cvtColor(cropped_image, cv2.COLOR_RGB2GRAY)
+    gray = cv2.cvtColor(image_rgb, cv2.COLOR_RGB2GRAY)
     gaussian_blurred = cv2.GaussianBlur(gray, (21, 21), 4)
     median_blurred_2 = cv2.medianBlur(gray, 25)
 
@@ -171,26 +146,26 @@ if uploaded_file is not None:
     regions = np.digitize(gaussian_blurred, bins=otsu_thresholds)
 
     # K-Means Clustering
-    pixels = cropped_image.reshape(-1, 3).astype(np.float32)
+    pixels = image_rgb.reshape(-1, 3).astype(np.float32)
     kmeans = KMeans(n_clusters=3, random_state=42)
     labels = kmeans.fit_predict(pixels)
-    segmented = kmeans.cluster_centers_[labels].reshape(cropped_image.shape).astype(np.uint8)
+    segmented = kmeans.cluster_centers_[labels].reshape(image_rgb.shape).astype(np.uint8)
 
     # HSV Segmentation
-    image_hsv = rgb2hsv(cropped_image)
+    image_hsv = rgb2hsv(image_rgb)
     lower_mask_value, upper_mask_value = 0.001, 0.090
     lower_mask = image_hsv[:, :, 0] > lower_mask_value
     upper_mask = image_hsv[:, :, 0] < upper_mask_value
     mask = lower_mask * upper_mask
-    red = cropped_image[:, :, 0] * mask
-    green = cropped_image[:, :, 1] * mask
-    blue = cropped_image[:, :, 2] * mask
+    red = image_rgb[:, :, 0] * mask
+    green = image_rgb[:, :, 1] * mask
+    blue = image_rgb[:, :, 2] * mask
     segmented_image = np.dstack((red, green, blue))
 
     # MTCNN Face Detection
     detector = MTCNN(thresholds=[0.6, 0.7, 0.9])
-    mtcnn_result = cropped_image.copy()
-    boxes, probs, landmarks = detector.detect(cropped_image, landmarks=True)
+    mtcnn_result = image_rgb.copy()
+    boxes, probs, landmarks = detector.detect(image_rgb, landmarks=True)
     fig_mtcnn, ax_mtcnn = plt.subplots(figsize=(5, 3))
     ax_mtcnn.imshow(mtcnn_result)
     ax_mtcnn.axis('off')
@@ -206,32 +181,6 @@ if uploaded_file is not None:
 
     # Haar Cascade Face Detection
     face_cascade = cv2.CascadeClassifier(cv2.data.haarcascades + 'haarcascade_frontalface_alt2.xml')
-    haar_result = cropped_image.copy()
-    faces_haar = face_cascade.detectMultiScale(cropped_image, scaleFactor=1.1, minNeighbors=1, minSize=(20, 20))
-    for (x, y, w, h) in faces_haar:
-        aspect_ratio = w / h
-        if 0.7 < aspect_ratio < 1.3:
-            cv2.rectangle(haar_result, (x, y), (x + w, y + h), (0, 0, 255), 2)
-
-    # Display Segmentation Results
-    fig_seg, axes_seg = plt.subplots(1, 5, figsize=(20, 5))
-    axes_seg[0].imshow(otsu_thresh, cmap='gray')
-    axes_seg[0].set_title("Otsu Threshold")
-    axes_seg[0].axis("off")
-    axes_seg[1].imshow(segmented)
-    axes_seg[1].set_title("K-Means Clustering")
-    axes_seg[1].axis("off")
-    axes_seg[2].imshow(segmented_image)
-    axes_seg[2].set_title("HSV Segmentation")
-    axes_seg[2].axis("off")
-    axes_seg[3].imshow(mtcnn_result)
-    axes_seg[3].set_title("MTCNN")
-    axes_seg[3].axis("off")
-    axes_seg[4].imshow(haar_result)
-    axes_seg[4].set_title("Haar Cascade")
-    axes_seg[4].axis("off")
-    st.pyplot(fig_seg)
-
-    # Display MTCNN separately for clarity (since it’s drawn on a separate figure)
-    st.subheader("MTCNN Face Detection (Detailed)")
-    st.pyplot(fig_mtcnn)
+    haar_result = image_rgb.copy()
+    faces_haar = face_cascade.detectMultiScale(image_rgb, scaleFactor=1.1, minNeighbors=1, minSize=(20, 20))
+    for (x, y, w, h)
